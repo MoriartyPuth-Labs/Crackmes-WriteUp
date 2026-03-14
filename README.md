@@ -1,4 +1,14 @@
-## Lab: MalwareTech VM1 — Virtual Machine Analysis
+# Lab: MalwareTech VM1 — Virtual Machine Analysis
+## 🖥️ Machine Specifications
+
+* Lab name: MalwareTech VM1
+* Lab Type: Static Analysis
+* Languages: x86_64
+* Platform: Windows 64-bit
+* Difficulty: Medium
+* Download: https://labs.malwaretech.com/files/virtualization/vm1.rar
+* Password: MalwareTechLabs
+
 ### Overview
 This lab focuses on reversing a custom 8-bit Virtual Machine (VM) used to obfuscate a hidden flag. The goal was to perform Static Analysis on the `ram.bin` file to understand the VM's internal architecture, decode its instruction set, and decrypt the flag without executing the binary.
 
