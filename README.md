@@ -1,4 +1,4 @@
-# Lab: MalwareTech VM1 — Virtual Machine Analysis
+# 🫧 Lab: MalwareTech VM1 — Virtual Machine Analysis
 ## 🖥️ Machine Specifications
 
 * Lab name: MalwareTech VM1
