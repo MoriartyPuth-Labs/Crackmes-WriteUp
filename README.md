@@ -21,6 +21,8 @@ By analyzing the raw hex dump (see image below), I identified the memory segment
 
 * Bytecode Section (0xFF - 0x1FB): The "Instruction Pointer" (IP) starts here. The VM uses a fixed-width instruction format of 3 bytes.
 
+<img width="867" height="494" alt="Screenshot 2026-03-13 162643" src="https://github.com/user-attachments/assets/ead45377-ead3-40bc-a98a-cd497ec982f3" />
+
 2. Virtual Machine Architecture
 
 The VM follows a classic Fetch-Decode-Execute cycle. Based on the disassembly of the engine, the instruction format is:
