@@ -1,4 +1,6 @@
 # 🫧 Lab: MalwareTech VM1 — Virtual Machine Analysis
+<img width="1024" height="572" alt="image" src="https://github.com/user-attachments/assets/19167dcc-61d3-4a5d-b8f2-b58f9ccb4c04" />
+
 ## 🖥️ Machine Specifications
 
 * Lab name: MalwareTech VM1
