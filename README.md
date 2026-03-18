@@ -9,11 +9,11 @@
 * Download: https://labs.malwaretech.com/files/virtualization/vm1.rar
 * Password: MalwareTechLabs
 
-### Overview
+## Overview
 This lab focuses on reversing a custom 8-bit Virtual Machine (VM) used to obfuscate a hidden flag. The goal was to perform Static Analysis on the `ram.bin` file to understand the VM's internal architecture, decode its instruction set, and decrypt the flag without executing the binary.
 
-### Technical Analysis
-1. Memory Layout
+## Technical Analysis
+### 1. Memory Layout
 
 By analyzing the raw hex dump (see image below), I identified the memory segmentation of the 507-byte `ram.bin` file:
 
@@ -23,7 +23,7 @@ By analyzing the raw hex dump (see image below), I identified the memory segment
 
 <img width="867" height="494" alt="Screenshot 2026-03-13 162643" src="https://github.com/user-attachments/assets/ead45377-ead3-40bc-a98a-cd497ec982f3" />
 
-2. Virtual Machine Architecture
+### 2. Virtual Machine Architecture
 
 The VM follows a classic Fetch-Decode-Execute cycle. Based on the disassembly of the engine, the instruction format is:
 `[Opcode (1 byte)] [Operand 1 (1 byte)] [Operand 2 (1 byte)]`
@@ -35,7 +35,7 @@ Through emulation, I mapped the following Instruction Set Architecture (ISA):
 | 0x02 | LOAD | Register = RAM[Operand1] |
 | 0x03 | XOR | RAM[Operand1] = RAM[Operand1] ^ Register |
 
-3. Emulation Logic (Pseudocode)
+### 3. Emulation Logic (Pseudocode)
 
 I derived the following logic to describe how the VM processes the bytecode:
 ```
