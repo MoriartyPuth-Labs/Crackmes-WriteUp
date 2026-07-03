@@ -1,0 +1,280 @@
+Hello.
+Welcome to the oficial writeup created by the author of the crackme “Roullete Simulator”.
+I will in this document explain the intended solution for the crackme.
+
+1 – What is the crackme
+
+To understand any crackme, there are some important unskipable steps.
+Those are:
+	- Checking what architecture it is made on;
+	- Seeing what happends when you run it;
+	- Decompile it (if close source);
+
+So let's do them.
+
+Firstly, the file is a .class file, that means that it is a java file.
+Java is a VM based language, so "java" IS the architecture.
+
+Secoundly, when you run the file the following text pops up:
+
+-------------------------------------------------------------- RULES PART 1 BEGGINING -----------------------------------------------------------
+
+Welcome to this crackme by Rodrigo Teixeira from Portugal.
+
+This is a roullete simulator.
+
+You start with 100 money units and you are considered to
+have beaten the crackme if you get negative money.
+
+If you lose all your money (that is, if you have exactly 0 money units),
+the program automatically closes and you are not considered to having beaten the crackme.
+
+You may bet as much as you want, as long as it is a positive ammount
+less than or equal to your current money.
+
+This follows the European Roullete rules, that is, 18/37 chance of doubling the bet,
+and 19/37 chance of losing the bet.
+
+Good luck!
+
+
+See rules? [Y]es/[N]o:
+
+-------------------------------------------------------------- RULES PART 1 END -----------------------------------------------------------
+
+If you answer yes, the following additional text pops up:
+
+-------------------------------------------------------------- RULES PART 2 BEGGINING -----------------------------------------------------------
+
+You are not allowed to do the following:
+
+1 -> Decompile, alter the code, and recompiling a modified version of the code.
+2 -> Manipulating the system clock in any way ir order to obtain control over the initial RNG seed choice.
+3 -> Using debug RAM watch or any other way to extract the seed value from memory.
+4 -> Using automated tools to automaticly input to this program (exception: manually copy-pasting text).
+
+You are allowed to do the following:
+
+1 -> Using betting strategies such as martingale or similar.
+2 -> Decompiling and analysing the code in any way. The code is not obfuscated.
+Using the information that the program gives you at runtime in any way of you likings.
+
+-------------------------------------------------------------- RULES PART 2 END -----------------------------------------------------------
+
+
+Please read all the text that it tells you, since it says in detail the rules of the challenge.
+One thing I would like to clarify is that I prohibited automatically entering inputs because I didn't want the solutions to just be "brute force until you get lucky".
+
+
+Here is a quick oversimplified summary of the rules: you play a casino roullete game, with simulated house edge, starting with 100 money units and have as goal
+to find some kind of glitch in the program to get negative money, which of course will be impossible (or, spoiler alert, maybe not haha) in normal usage of the
+program because it never allows you to bet more than the ammount of money you currently have.
+
+
+And now, the third step: decompiling.
+
+Of course, I could just give you the original source code, since I was the one to make it, but that would kinda be cheating, because any other cracker wouldn't
+have access to it, so instead I just used an online decompiler.
+
+Here is the code
+
+-------------------------------------------------------------- DECOMPILED CODE BEGGINING -----------------------------------------------------------
+1 import java.util.InputMismatchException;
+2 import java.util.Scanner;
+3 
+4 public class Main {
+5    private int seed;
+6    byte DecompilingJavaCodeIsReallyEasyIsntIt;
+7 
+8    public Main() {
+9       System.out.println("Welcome to this crackme by Rodrigo Teixeira from Portugal.\n\nThis is a roullete simulator.\n\nYou start with 100 money units and you are considered to\nhave beaten the crackme if you get negative money.\n\nIf you lose all your money (that is, if you have exactly 0 money units),\nthe program automatically closes and you are not considered to having beaten the crackme.\n\nYou may bet as much as you want, as long as it is a positive ammount\nless than or equal to your current money.\n\nThis follows the European Roullete rules, that is, 18/37 chance of doubling the bet,\nand 19/37 chance of losing the bet.\n\nGood luck!\n\n");
+10      this.seed = (int)System.nanoTime() & 0xffff;
+11      Scanner var1 = new Scanner(System.in);
+12
+13      try {
+14         System.out.print("See rules? [Y]es/[N]o: ");
+15         String var2 = var1.nextLine();
+16         if (!var2.isEmpty() && var2.toLowerCase().charAt(0) == 'y') {
+17            System.out.println("\nYou are not allowed to do the following:\n\n1 -> Decompile, alter the code, and recompiling a modified version of the code.\n2 -> Manipulating the system clock in any way ir order to obtain control over the initial RNG seed choice.\n3 -> Using debug RAM watch or any other way to extract the seed value from memory.\n4 -> Using automated tools to automaticly input to this program (exception: manually copy-pasting text).\n\nYou are allowed to do the following:\n\n1 -> Using betting strategies such as martingale or similar.\n2 -> Decompiling and analysing the code in any way. The code is not obfuscated.\nUsing the information that the program gives you at runtime in any way of you likings.");
+18         }
+19
+20         int var3 = 100;
+21         System.out.println("\n\nMoney: " + var3);
+22
+23         while(true) {
+24            if (var3 <= 0) {
+25               if (var3 < 0) {
+26                  System.out.println("Congratulations, you solved the crackme!\n\nPress Enter to Exit.");
+27                  var1.nextLine();
+28               }
+29               break;
+30            }
+31
+32            int var4 = -1;
+33
+34            do {
+35               try {
+36                  System.out.print("Enter bet: ");
+37                  var4 = var1.nextInt();
+38               } catch (InputMismatchException var7) {
+39                  System.out.println("Please Input a valid 32-bit integer.");
+40               }
+41            } while(var4 < 1 || var4 > var3);
+42
+43            if (this.rand() % 37 < 18) {
+44               var3 += var4;
+45            } else {
+46               var3 -= var4;
+47            }
+48
+49            System.out.println("Money: " + var3);
+50         }
+51      } catch (Throwable var8) {
+52         try {
+53            var1.close();
+54         } catch (Throwable var6) {
+55            var8.addSuppressed(var6);
+56         }
+57
+58         throw var8;
+59      }
+60
+61      var1.close();
+62   }
+63
+64   private int rand() {
+65      this.seed ^= this.seed << 7 & 0xffff;
+66      this.seed ^= this.seed >>> 9;
+67      this.seed ^= this.seed << 8 & 0xffff;
+68      return this.seed;
+69   }
+70
+71   public static void main(String[] args) {
+72      new Main();
+73   }
+74}
+---------------------------------------- DECOMPILED CODE END (line numbers added for easier later reference) -----------------------------------------------------
+
+Let's break it into a few parts.
+
+Firstly, the easiest: the fields.
+Fields, also less formally known as "global variables" keep their name, even after compiled, for compability with other java classes interacting with it reason.
+
+This code has two fields:
+	private int seed;
+	byte DecompilingJavaCodeIsReallyEasyIsntIt;
+
+The secound field is left as a haha joke for anyone decompiling the code, without ever beeing used in the actual code.
+
+However, it's pretty obvious what the first field is, given it's name "seed".
+It is (as you will see later) the pseudo-random number generator seed used for the program.
+
+
+One other thing that also keeps its original name are functions.
+
+There are 3 functions in the code:
+	public Main()
+	private int rand()
+	public static void main(String[])
+
+The last one simply creates a Main object as a way to call the contructor (the first function) and avoid the static keyword spam.
+This is a general guideline I follow when coding in java that doesn't impact in any way the execution of the program, so don't use it if you don't like it.
+
+
+The secound function has less code to explain than the first, so I'll start there.
+
+All it does is to apply the xorshift16 algorithm to the seed and return the same, after applying the algorithm.
+Xorshift16 is a 16-bit RNG algorithm that cycles thru all 16 bit values, except 0, before looping.
+
+
+Now, let's break down the contructor, where all the magic happends.
+
+First, it prints the rules in a single print statement (yeah, I know, I'm an awesome programmer, I know what \n does) and then proceeds to set seed to the bottom 16
+bits of the current system time in nano secounds. That is way too precise to time executing the program at the right time, and manipulating the system clock to yield a wanted
+seed is explicitly banned in the rules.
+
+Then a variable brilliantly called "var1" by the decompiler is deffined as a Scanner to System.in.
+For all non-java-users, that basicly it means that it is the input handler.
+
+Then it does another println asking if you want to see them it shows you them, as expected. Nothing interesting here, and no security flaws either, this isn't c.
+
+Then another variable that I couldn't personally name better than the compiler called "var3" is deffined in line 20.
+We have, however, a context clue in the very next line
+21 System.out.println("\n\nMoney: " + var3);
+To indicate that this var3 represents the ammount of money we have at each moment.
+This clue is also re-enforced by line 49.
+
+
+Then we enter the main loop in line 23.
+
+The very first thing the main loop does is to check wether the money ammount is less than or equal to 0.
+If it is, then it further checks if the money ammount is strictly less than 0 (the criteria to beat the crackme), and if it is, it prints a congratulatory message.
+In both cases, it beeing exactly 0 (bankrupt) or strictly less than 0 (beating the crackme),
+the execution of the code terminates by breaking out of the loop and closing the input handler.
+
+
+Then, yet another brilliantly (okay I'll stop) variable is deffined:
+	32    int var4 = -1;
+
+A simple do while loop asks for the user to enter a bet until they enter a valid 32 bit integer between 1 and the money ammount (inclusive to allow for all in),
+while storing the value of the bet in this var4 varible.
+
+
+Then the code calls the rng function to either increase or decrease money by the value  of the bet.
+
+The exact criteria for winning or losing the bet is the following:
+
+43    if (this.rand() % 37 < 18) { // if rand() %  37 < 18:
+44        var3 += var4;            //     money += bet
+45    } else {                     // else:
+46        var3 -= var4;            //     money -= bet
+47    }
+
+After this, the program prints the new ammount of money and the loop repeats.
+
+
+Now that we fully understand the code, let's start working on the solution.
+
+Our goal is to get negative money, but since we can't get it by losing more than the have, we have to reach the negatives by force by just getting so much money
+that the sign bit turns into a 1. That's right, the solution is to get so much money that we overflow the ammount of money we have into the negatives.
+
+Now you may be thinking "Well, so we just have to all in a couple times and get lucky", but that won't work.
+Out of all 2^16 seeds, the only one that gets that many all ins in a row is seed 0, and the literal only reason why that happends is just because xorshift keeps
+seed 0 at 0, and 0 % 37 happends to be less than 18.
+But unless if you can time executing the program in exactly a multiple of 2^16 nano secound, you will not get the seed 0.
+
+
+However, there is a propriety of the rng that we can abuse: once it chose its initial seed, all alterations to the seed are deterministic,
+and additionally there only exist about 65 thousand possible seeds.
+
+So here's how I solved this crackme:
+	First, I execute the crackme and bet 1 unit about 20 times in a row.
+	Then I input the pattern of wins and losses to another external program that will compare that pattern to all 65 thousand possible patterns in order to
+		discover which seed I got.
+	Then, using the seed, I generate the pattern of future wins and losses and, when I'm about to win go all in, and when I'm about to lose bet minimum (1 unit).
+
+This way we can exponentially increase our money without risk and without guessing, eventually overflowing our money counter into the negatives and beating the crackme.
+
+
+Here is a python program that does as just described:
+
+past_pattern = [Enter past pattern here, True meaning win and False meaning lost, in chronological order]
+for _seed in range(1 << 16):
+	seed = _seed
+	for past_result in past_pattern:
+		seed ^= (seed << 7) & 0xffff
+		seed ^= seed >> 9
+		seed ^= (seed << 8) & 0xffff
+		if (seed % 37 < 18) != past_result: # if the pattern of the seed currently beeing checked does not match the past pattern, quit checking this seed
+			break
+	else: # fun fact: else statements on loops in python will only run if the loop was not breaked out from.
+		print(f"seed: {_seed}")
+		while True:
+			seed ^= (seed << 7) & 0xffff
+			seed ^= seed >> 9
+			seed ^= (seed << 8) & 0xffff
+			input(seed % 37 < 18) # input instead of print in order to way for user intervention before saying the next result.
+
+
+And here it is, the crackme is fully explained and solved.
+Hope you learnt something and please submit your solution, I would love to see what other creative ways people will find to solve it. Goodbye :)
