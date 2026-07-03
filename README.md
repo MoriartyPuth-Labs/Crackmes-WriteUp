@@ -2,6 +2,8 @@
 
 Full writeups with proof-of-concept code, reproduction steps, and tooling notes.
 
+---
+
 ## Challenge Solutions
 
 | Challenge Name | Category | Flag / Solution |
@@ -41,11 +43,15 @@ labs/
     └── README.md
 ```
 
+---
+
 ## Tooling used
 - Disassembly / decompilation: IDA Pro, Ghidra, monodis (Mono IL Disassembler), Detect-It-Easy, x64dbg (with Scylla)
 - Python 3: Emulator & solver scripts, keygens, custom PRNG prediction simulators
 - Platform: Windows (x86/x64) and Linux/Mono runtime
 - Network tools: Netcat (local TCP spoofing)
+
+---
 
 ## Lessons / takeaways
 - **Bob's Gambling Crackme** — Windows console binary; solved by abusing integer overflow / underflow logic inside the betting check.
@@ -56,7 +62,18 @@ labs/
 - **The Alchemist's Lock** — UPX/custom packer analysis; solved by dynamic unpacking in x64dbg, OEP dumping via Scylla, and binary patching the validation check.
 - **Catgirl Crackme** — .NET assembly reversing; solved by static IL disassembly with Mono's `monodis` tool to identify the correct validation string while bypassing decoy strings.
 
+---
+
 ## Author
-Eav Puthcambo  
-AUPP Cybersecurity Programme  
-American University of Phnom Penh  
+
+<div align="center">
+
+**Eav Puthcambo**
+<br/>
+AUPP Cybersecurity Programme
+<br/>
+American University of Phnom Penh
+
+[![GitHub](https://img.shields.io/badge/GitHub-MoriartyPuth--Labs-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/MoriartyPuth-Labs)
+
+</div>
