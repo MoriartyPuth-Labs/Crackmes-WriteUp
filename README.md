@@ -1,1 +1,85 @@
-# Crackmes-Write-up
+# Crackmes Writeups
+
+Full writeups with proof-of-concept code, reproduction steps, and tooling notes. Click a challenge to open its writeup.
+
+[Bob's Gambling Crackme](labs/Bobs-Gambling-Lab)
+```
+dzctf(bob_is_free_1337)
+```
+
+[Roullete Simulator](labs/Roullete-Simulator-Lab)
+```
+PRNG Prediction / Integer Overflow
+```
+
+[ChocolateFactory](labs/Willy-Wonka-Chocolate-Factory-Lab)
+```
+Ch0c-M1lk-CrMe-!(L>
+```
+
+[MalwareTech VM1](labs/MalwareTech-VM1-Lab)
+```
+FLAG{VIRTUAL-MACHINE-UNDERSTANDING}
+```
+
+[CryMore](labs/CryMore-Lab)
+```
+Malware successfully neutralized. Good job.
+```
+
+[The Alchemist's Lock](labs/The-Alchemist-Lock-Lab)
+```
+FLAG_R3v3rs3d
+```
+
+[Catgirl Crackme](labs/Catgirl.crack-Lab)
+```
+Mint
+```
+
+---
+
+Each folder contains a self-contained README.md writeup plus a runnable solver script or walkthrough.
+
+```
+labs/
+├── Bobs-Gambling-Lab/
+│   ├── README.md
+│   └── bob_gambling_writeup.txt
+├── Roullete-Simulator-Lab/
+│   ├── README.md
+│   ├── crackme_helper.py
+│   └── solution.txt
+├── Willy-Wonka-Chocolate-Factory-Lab/
+│   ├── README.md
+│   └── ChocolateFactory_writeup.txt
+├── MalwareTech-VM1-Lab/
+│   ├── README.md
+│   └── solver.py
+├── CryMore-Lab/
+│   └── README.md
+├── The-Alchemist-Lock-Lab/
+│   └── README.md
+└── Catgirl.crack-Lab/
+    └── README.md
+```
+
+## Tooling used
+- Disassembly / decompilation: IDA Pro, Ghidra, monodis (Mono IL Disassembler), Detect-It-Easy, x64dbg (with Scylla)
+- Python 3: Emulator & solver scripts, keygens, custom PRNG prediction simulators
+- Platform: Windows (x86/x64) and Linux/Mono runtime
+- Network tools: Netcat (local TCP spoofing)
+
+## Lessons / takeaways
+- **Bob's Gambling Crackme** — Windows console binary; solved by abusing integer overflow / underflow logic inside the betting check.
+- **Roullete Simulator** — Java class binary; solved by brute-forcing the 16-bit PRNG seed from ~20 bets to predict wins/losses and overflow the wallet balance.
+- **ChocolateFactory** — 64-bit Windows console binary; solved by reconstructing a multi-stage validation algorithm and constraint solving.
+- **MalwareTech VM1** — 8-bit custom Virtual Machine analysis; solved by extracting raw memory bytecode (`ram.bin`) and writing a Python VM emulator to reverse-engineer the XOR key logic.
+- **CryMore** — TCP-based killswitch analysis; solved by setting up a local TCP socket using Netcat to spoof the expected response (`200 OK`) and neutralizing the logic path.
+- **The Alchemist's Lock** — UPX/custom packer analysis; solved by dynamic unpacking in x64dbg, OEP dumping via Scylla, and binary patching the validation check.
+- **Catgirl Crackme** — .NET assembly reversing; solved by static IL disassembly with Mono's `monodis` tool to identify the correct validation string while bypassing decoy strings.
+
+## Author
+Eav Puthcambo  
+AUPP Cybersecurity Programme  
+American University of Phnom Penh  
