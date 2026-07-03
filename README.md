@@ -1,41 +1,18 @@
 # Crackmes Writeups
 
-Full writeups with proof-of-concept code, reproduction steps, and tooling notes. Click a challenge to open its writeup.
+Full writeups with proof-of-concept code, reproduction steps, and tooling notes.
 
-[Bob's Gambling Crackme](labs/Bobs-Gambling-Lab)
-```
-dzctf(bob_is_free_1337)
-```
+## Challenge Solutions
 
-[Roullete Simulator](labs/Roullete-Simulator-Lab)
-```
-PRNG Prediction / Integer Overflow
-```
-
-[ChocolateFactory](labs/Willy-Wonka-Chocolate-Factory-Lab)
-```
-Ch0c-M1lk-CrMe-!(L>
-```
-
-[MalwareTech VM1](labs/MalwareTech-VM1-Lab)
-```
-FLAG{VIRTUAL-MACHINE-UNDERSTANDING}
-```
-
-[CryMore](labs/CryMore-Lab)
-```
-Malware successfully neutralized. Good job.
-```
-
-[The Alchemist's Lock](labs/The-Alchemist-Lock-Lab)
-```
-FLAG_R3v3rs3d
-```
-
-[Catgirl Crackme](labs/Catgirl.crack-Lab)
-```
-Mint
-```
+| Challenge Name | Category | Flag / Solution |
+| :--- | :--- | :--- |
+| [Bob's Gambling Crackme](labs/Bobs-Gambling-Lab) | Windows PE / Integer Overflow | `dzctf(bob_is_free_1337)` |
+| [Roullete Simulator](labs/Roullete-Simulator-Lab) | Java / PRNG Prediction | PRNG Seed Prediction & Wallet Overflow |
+| [ChocolateFactory](labs/Willy-Wonka-Chocolate-Factory-Lab) | Windows PE / Constraint Solving | `Ch0c-M1lk-CrMe-!(L>` |
+| [MalwareTech VM1](labs/MalwareTech-VM1-Lab) | Custom VM / Static Analysis | `FLAG{VIRTUAL-MACHINE-UNDERSTANDING}` |
+| [CryMore](labs/CryMore-Lab) | Network Spoofing / Killswitch Bypass | Local TCP Spoofing (`HTTP/1.1 200 OK`) |
+| [The Alchemist's Lock](labs/The-Alchemist-Lock-Lab) | Packer Unpacking / Binary Patching | OEP Finding & Jump Patch (`FLAG_R3v3rs3d`) |
+| [Catgirl Crackme](labs/Catgirl.crack-Lab) | .NET Assembly / IL Disassembly | `Mint` (Decoy Bypass) |
 
 ---
 
