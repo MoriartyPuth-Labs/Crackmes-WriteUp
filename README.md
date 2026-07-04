@@ -63,7 +63,8 @@ labs/
 - **Catgirl Crackme** — .NET assembly reversing; solved by static IL disassembly with Mono's `monodis` tool to identify the correct validation string while bypassing decoy strings.
 
 ---
-
+<div align="center">
+    
 ## 👤 Author
 
 **MoriartyPuth** — Offensive Security
