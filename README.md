@@ -15,40 +15,50 @@ Full writeups with proof-of-concept code, reproduction steps, and tooling notes.
 | [CryMore](labs/CryMore-Lab) | Network Spoofing / Killswitch Bypass | Local TCP Spoofing (`HTTP/1.1 200 OK`) |
 | [The Alchemist's Lock](labs/The-Alchemist-Lock-Lab) | Packer Unpacking / Binary Patching | OEP Finding & Jump Patch (`FLAG_R3v3rs3d`) |
 | [Catgirl Crackme](labs/Catgirl.crack-Lab) | .NET Assembly / IL Disassembly | `Mint` (Decoy Bypass) |
-| [Lack's "Level" Series (12 crackmes)](labs/Lack-Level-Series-Lab) | Windows PE / XOR · Keygens · Bytecode VMs · Anti-Debug | Levels 1–10 + 2 bosses (e.g. `password`, `matrix`, `!St3r{`, `Wow you did it!`) |
+| [Lack's "Level" Series (12 crackmes)](Lack-Level-Series-Lab) | Windows PE / XOR · Keygens · Bytecode VMs · Anti-Debug | Levels 1–10 + 2 bosses (e.g. `password`, `matrix`, `!St3r{`, `Wow you did it!`) |
 
 ---
 
 Each folder contains a self-contained README.md writeup plus a runnable solver script or walkthrough.
 
 ```
-labs/
-├── Bobs-Gambling-Lab/
-│   ├── README.md
-│   └── bob_gambling_writeup.txt
-├── Roullete-Simulator-Lab/
-│   ├── README.md
-│   ├── crackme_helper.py
-│   └── solution.txt
-├── Willy-Wonka-Chocolate-Factory-Lab/
-│   ├── README.md
-│   └── ChocolateFactory_writeup.txt
-├── MalwareTech-VM1-Lab/
-│   ├── README.md
-│   └── solver.py
-├── CryMore-Lab/
-│   └── README.md
-├── The-Alchemist-Lock-Lab/
-│   └── README.md
-└── Catgirl.crack-Lab/
-    └── README.md
+.
+├── labs/
+│   ├── Bobs-Gambling-Lab/
+│   │   ├── README.md
+│   │   └── bob_gambling_writeup.txt
+│   ├── Roullete-Simulator-Lab/
+│   │   ├── README.md
+│   │   ├── crackme_helper.py
+│   │   └── solution.txt
+│   ├── Willy-Wonka-Chocolate-Factory-Lab/
+│   │   ├── README.md
+│   │   └── ChocolateFactory_writeup.txt
+│   ├── MalwareTech-VM1-Lab/
+│   │   ├── README.md
+│   │   └── solver.py
+│   ├── CryMore-Lab/
+│   │   └── README.md
+│   ├── The-Alchemist-Lock-Lab/
+│   │   └── README.md
+│   └── Catgirl.crack-Lab/
+│       └── README.md
+└── Lack-Level-Series-Lab/          (12-part "Level" series — see its own README)
+    ├── README.md                   series index: primitives, flag-bug notes, verdict
+    ├── Level 1/ … Level 10/
+    │   ├── README.md · writeup.txt
+    │   └── keygen.py | solve.py    (levels 3, 4, 5, 8, 9, 10)
+    ├── Ultimate Boss - Final/
+    │   └── README.md · writeup.txt · solve.py
+    └── Ultimate Real Boss - 152-Part/
+        └── README.md · writeup.txt · keygen.py
 ```
 
 ---
 
 ## Tooling used
 - Disassembly / decompilation: IDA Pro, Ghidra, monodis (Mono IL Disassembler), Detect-It-Easy, x64dbg (with Scylla)
-- Python 3: Emulator & solver scripts, keygens, custom PRNG prediction simulators
+- Python 3: Emulator & solver scripts, keygens, custom PRNG prediction simulators, `pefile` + `capstone` for scripted static disassembly
 - Platform: Windows (x86/x64) and Linux/Mono runtime
 - Network tools: Netcat (local TCP spoofing)
 
@@ -62,6 +72,7 @@ labs/
 - **CryMore** — TCP-based killswitch analysis; solved by setting up a local TCP socket using Netcat to spoof the expected response (`200 OK`) and neutralizing the logic path.
 - **The Alchemist's Lock** — UPX/custom packer analysis; solved by dynamic unpacking in x64dbg, OEP dumping via Scylla, and binary patching the validation check.
 - **Catgirl Crackme** — .NET assembly reversing; solved by static IL disassembly with Mono's `monodis` tool to identify the correct validation string while bypassing decoy strings.
+- **Lack's "Level" Series** — 12-challenge Windows PE progression (plaintext → XOR → keygens → bytecode VM → integer-packing algebra → base-31 hash inversion → anti-debug jump-table VM → 152-part chained keygen), solved entirely via scripted `pefile`/`capstone` disassembly with no debugger. Also documents a recurring "flag key vs. accepted answer" design bug found in three of the levels — see the [series README](Lack-Level-Series-Lab) for the full writeup index and verdict.
 
 ---
 <div align="center">

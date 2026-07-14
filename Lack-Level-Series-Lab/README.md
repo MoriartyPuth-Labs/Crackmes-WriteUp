@@ -16,20 +16,20 @@ Static-first, **no debugger required** — which also neutralizes the bosses' an
 
 ## Results at a glance
 
-| # | New primitive introduced | Answer | Flag / Message |
-|---|--------------------------|--------|----------------|
-| 1 | Plaintext string in `.rdata` | `password` | — |
-| 2 | XOR 0x5A vs stack blob | `reverse` | — |
-| 3 | Keygen: `sum×1337 ^ 0x5A5A` | `admin` / `719707` | — |
-| 4 | Keygen + serial-keyed XOR flag | `admin` / `64083` | `Solved!` |
-| 5 | Two-part license + XOR flag | `1700` / `5565` | `Victory!` |
-| 6 | Exact-char key + XOR flag *(bugged flag)* | `crack` | `Succeed!` (intended; unreachable) |
-| 7 | XOR-0x5A password + decoy menu UI | `license` | `Welcome to the Secret Menu!` |
-| 8 | Bytecode VM (load/xor/assert) *(bugged flag)* | `matrix` | `Matrix!` (intended; unreachable) |
-| 9 | Bytes-as-two-int32 arithmetic constraint *(bugged flag)* | `lrys'ume` | `Pass!!!!` (intended; unreachable) |
-| 10 | Base-31 hash in a worker thread (BOSS) | `!St3r{` (any preimage) | `Perfect!` |
-| Boss | Anti-debug + jump-table VM, 2-part license | `ZZB` / `7626` / `3960` | `Wow you did it!` |
-| Final | Anti-debug + VM, **152-part chained keygen** | `)` + 152 parts | `Wow you did it!` |
+| # | Challenge | New primitive introduced | Answer | Flag / Message |
+|---|-----------|--------------------------|--------|----------------|
+| 1 | [Level 1](Level%201) | Plaintext string in `.rdata` | `password` | — |
+| 2 | [Level 2](Level%202) | XOR 0x5A vs stack blob | `reverse` | — |
+| 3 | [Level 3](Level%203) | Keygen: `sum×1337 ^ 0x5A5A` | `admin` / `719707` | — |
+| 4 | [Level 4](Level%204) | Keygen + serial-keyed XOR flag | `admin` / `64083` | `Solved!` |
+| 5 | [Level 5](Level%205) | Two-part license + XOR flag | `1700` / `5565` | `Victory!` |
+| 6 | [Level 6](Level%206) | Exact-char key + XOR flag *(bugged flag)* | `crack` | `Succeed!` (intended; unreachable) |
+| 7 | [Level 7](Level%207) | XOR-0x5A password + decoy menu UI | `license` | `Welcome to the Secret Menu!` |
+| 8 | [Level 8](Level%208) | Bytecode VM (load/xor/assert) *(bugged flag)* | `matrix` | `Matrix!` (intended; unreachable) |
+| 9 | [Level 9](Level%209) | Bytes-as-two-int32 arithmetic constraint *(bugged flag)* | `lrys'ume` | `Pass!!!!` (intended; unreachable) |
+| 10 | [Level 10](Level%2010) | Base-31 hash in a worker thread (BOSS) | `!St3r{` (any preimage) | `Perfect!` |
+| Boss | [Ultimate Boss - Final](Ultimate%20Boss%20-%20Final) | Anti-debug + jump-table VM, 2-part license | `ZZB` / `7626` / `3960` | `Wow you did it!` |
+| Final | [Ultimate Real Boss - 152-Part](Ultimate%20Real%20Boss%20-%20152-Part) | Anti-debug + VM, **152-part chained keygen** | `)` + 152 parts | `Wow you did it!` |
 
 ## Difficulty arc
 
@@ -56,7 +56,7 @@ A strong teaching set — roughly **8/10 as a curriculum, ~6.5 as a pure challen
 ## Layout
 
 ```
-crackmes writeup/
+Lack-Level-Series-Lab/
 ├── README.md                          (this file)
 ├── Level 1/ … Level 10/
 │   ├── README.md                      rich walkthrough
