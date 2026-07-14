@@ -1,0 +1,139 @@
+========================================================================
+ Level 1 - Walkthrough
+========================================================================
+ Category   : Reverse Engineering (RE)
+ Difficulty : Easy (1/6)
+ Binary     : level1easy.exe  (PE32+ / Windows x64, ~19 KB)
+ Goal       : Recover the password that prints "Access Granted. Welcome!"
+
+ ***  ANSWER: the password is  ->  password  <-  ***
+
+ Solved by pure STATIC analysis. No debugger, no patching, no brute force.
+========================================================================
+
+
+1. RECON - what are we dealing with?
+------------------------------------------------------------------------
+crackmes.one ships every challenge as a zip protected with the password
+"crackmes.one":
+
+    unzip -P crackmes.one 6a512980234391ae74f63ae8.zip
+    -> level1easy.exe
+
+Identify the file:
+
+    file level1easy.exe
+    -> PE32+ executable (console) x86-64, for MS Windows, 6 sections
+
+64-bit Windows console app, small (~19 KB). Console I/O + small size =
+classic "enter the secret" login prompt.
+
+
+2. STATIC ANALYSIS - read the strings first
+------------------------------------------------------------------------
+Golden rule for easy crackmes: dump the strings BEFORE doing anything
+clever. Beginner binaries usually leave the comparison secret as a
+plaintext string literal.
+
+"strings" was not installed, so a 3-line Python one-liner does the same
+(every printable ASCII run of length >= 5):
+
+    import re
+    data = open('level1easy.exe','rb').read()
+    for m in re.finditer(rb'[\x20-\x7e]{5,}', data):
+        print(m.group().decode())
+
+Key output:
+
+    password
+    =============================
+            LOGIN SCREEN
+    =============================
+    Enter Password:
+    Access Granted. Welcome!
+    Access Denied. Invalid Password.
+    Press Enter to exit...
+    C:\Users\knze2\source\repos\crackmetest\x64\Release\crackmetest.pdb
+    MSVCP140.dll
+
+Observations:
+  * UI strings confirm the model: prints "Access Granted. Welcome!" on
+    success, "Access Denied. Invalid Password." on failure.
+  * A lone string "password" sits just ABOVE the UI block and is NOT part
+    of any printed message.
+  * Imports (MSVCP140.dll, std::cin/cout/string) => C++ using std::string,
+    so the check is most likely  if (input == "password").
+  * Bonus: the leaked PDB path exposes the build-machine username (knze2)
+    and the project name (crackmetest). The crackme's author is Lack
+    (the "Level" series).
+
+
+3. REASONING - why "password" and not something else?
+------------------------------------------------------------------------
+Confirm "password" is the comparison target by looking at WHERE each
+string lives (its file offset):
+
+    import re
+    data = open('level1easy.exe','rb').read()
+    for m in re.finditer(rb'[\x20-\x7e]{4,}', data):
+        s = m.group().decode()
+        if any(k in s for k in ['password','Access','LOGIN','Enter','====']):
+            print(hex(m.start()), repr(s))
+
+    0x25c8 'password'
+    0x25d8 '============================='
+    0x25f8 '        LOGIN SCREEN         '
+    0x2618 '============================='
+    0x2638 'Enter Password: '
+    0x2651 'Access Granted. Welcome!'
+    0x2671 'Access Denied. Invalid Password.'
+    0x2699 'Press Enter to exit...'
+
+This layout IS the solution:
+  * All UI strings form one contiguous block from 0x25d8 onward (compiler
+    laid them out in the order cout uses them).
+  * "password" sits ALONE at 0x25c8, right before that block, physically
+    separated from the messages.
+
+That separation is the tell. A string used only in a comparison
+(input == "password") is emitted independently from strings streamed to
+cout. The isolated literal just before the print block is the value your
+input is checked against. No printed message contains the bare word
+"password", so it has exactly one job: it is the secret.
+
+
+4. VERIFICATION - prove it
+------------------------------------------------------------------------
+First line = password, second Enter dismisses "Press Enter to exit":
+
+    printf 'password\n\n' | ./level1easy.exe
+
+    =============================
+            LOGIN SCREEN
+    =============================
+
+    Enter Password:
+    Access Granted. Welcome!
+
+    Press Enter to exit...
+
+"Access Granted. Welcome!" => confirmed.
+
+
+5. ANSWER
+------------------------------------------------------------------------
+    Password         : password
+    Method           : Static string analysis
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip          - extract the archive (password: crackmes.one)
+    file           - identify format/architecture (PE32+ x64)
+    Python (re)    - stand-in for `strings`; extract runs AND their offsets
+    the binary     - dynamic confirmation by feeding the candidate
+
+Equivalent tools you'd normally use: strings, rabin2/radare2, Ghidra,
+IDA, dnSpy. For a Level-1 login check, strings + reasoning is enough.
+
+

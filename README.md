@@ -15,6 +15,7 @@ Full writeups with proof-of-concept code, reproduction steps, and tooling notes.
 | [CryMore](labs/CryMore-Lab) | Network Spoofing / Killswitch Bypass | Local TCP Spoofing (`HTTP/1.1 200 OK`) |
 | [The Alchemist's Lock](labs/The-Alchemist-Lock-Lab) | Packer Unpacking / Binary Patching | OEP Finding & Jump Patch (`FLAG_R3v3rs3d`) |
 | [Catgirl Crackme](labs/Catgirl.crack-Lab) | .NET Assembly / IL Disassembly | `Mint` (Decoy Bypass) |
+| [Lack's "Level" Series (12 crackmes)](labs/Lack-Level-Series-Lab) | Windows PE / XOR · Keygens · Bytecode VMs · Anti-Debug | Levels 1–10 + 2 bosses (e.g. `password`, `matrix`, `!St3r{`, `Wow you did it!`) |
 
 ---
 

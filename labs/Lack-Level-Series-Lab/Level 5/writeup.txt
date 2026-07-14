@@ -1,0 +1,200 @@
+========================================================================
+ Level 5 - Walkthrough
+========================================================================
+ Category   : Reverse Engineering (RE) / Two-part license key + XOR
+ Difficulty : Medium
+ Binary     : level5.exe  (PE32+ / Windows x64, ~18 KB)
+ Goal       : Enter Key Part 1 + Key Part 2 (both numeric) so the program
+              prints "[+] LICENSE VALIDATED!" then "[+] Flag: <flag>".
+
+ ***  FLAG: Victory!                                                  ***
+ ***                                                                  ***
+ ***  Part 1 = 1700                                                   ***
+ ***  Part 2 = 5565                                                   ***
+ ***                                                                  ***
+ ***  Constraint: Part1 % 17 == 0                                     ***
+ ***              Part2 == (Part1 XOR 0x1337) + 0x2A                  ***
+ ***  Flag key = Part2 & 0xFF  (must be 0xBD for readable flag)       ***
+
+ Recovered by static disassembly - no debugger, no brute forcing the key
+ itself (only the mod-17 free variable was brute-forced).
+========================================================================
+
+
+1. RECON
+------------------------------------------------------------------------
+    unzip -P crackmes.one 6a512a7b71ee08cad748dcb6.zip  -> level5.exe
+    file level5.exe   -> PE32+ console x86-64
+
+Strings (full picture this time - ALL FOUR outcome branches, not just the
+obvious ones):
+
+           CRACKME LEVEL 5
+    Enter Key Part 1:
+    Enter Key Part 2:
+    [+] LICENSE VALIDATED!
+    [+] Flag:
+    [-] INVALID LICENSE KEY!
+    [-] Decrypted output:  (Garbage!)
+
+Two numeric inputs, a pass/fail gate, and notably: THE FAILURE PATH STILL
+DECRYPTS AND PRINTS SOMETHING, labeled "(Garbage!)". Strong hint the
+decryption key is derived from input regardless of whether the license
+check passes - same pattern as Level 4's independent Success/readable
+split, now explicit in the UI text.
+
+(Lesson learned mid-analysis: an early, too-narrow grep missed the
+"INVALID"/"Garbage" strings entirely and led to a wrong first guess.
+Always dump the FULL string list before modeling the branches.)
+
+
+2. LOCATING MAIN AND THE STORAGE ORDER
+------------------------------------------------------------------------
+Anchor on "Enter Key Part 1:" / "Enter Key Part 2:" -> main at
+0x140001230 (pefile + capstone).
+
+Reading in strict execution order:
+
+    ; print "Enter Key Part 1: "
+    0x14000126b  lea rdx, [Part1_prompt]
+    ...
+    ; std::cin >> Part1  -> stored at [rbp-0x34]
+    0x14000127e  lea rdx, [rbp - 0x34]
+    0x140001289  call <istream::operator>>>
+
+    ; print "Enter Key Part 2: "
+    0x1400012c0  lea rdx, [Part2_prompt]
+    ...
+    ; std::cin >> Part2  -> stored at [rbp-0x38]
+    0x1400012cc  lea rdx, [rbp - 0x38]
+    0x1400012d7  call <istream::operator>>>
+
+IMPORTANT: the two locals are NOT in the order you'd guess from layout -
+Part1 ends up at [rbp-0x34] and Part2 at [rbp-0x38]. Getting this
+backwards was the first mistake made here (see Takeaways) and produced
+"INVALID LICENSE KEY!" with a garbage decrypt on the first attempt.
+
+
+3. THE VALIDATION + DECRYPTION LOGIC
+------------------------------------------------------------------------
+    0x14000130e  mov edi, dword ptr [rbp-0x38]   ; edi = Part2
+    ...
+    0x14000138a  mov r8d, dword ptr [rbp-0x34]   ; r8d = Part1
+    0x140001391  test r8d, r8d
+    0x140001393  mov  eax, 0xf0f0f0f1            ; magic constant for /17
+    0x140001398  mul  r8d
+    0x14000139b  shr  edx, 4                     ; edx = Part1 / 17
+    0x14000139e  imul ecx, edx, 0x11             ; ecx = (Part1/17)*17
+    0x1400013a1  cmp  r8d, ecx
+    0x1400013a4  jne  invalid                    ; fails unless Part1%17==0
+
+    0x1400013a6  xor  r8d, 0x1337                ; r8d = Part1 XOR 0x1337
+    0x1400013ad  add  r8d, 0x2a                  ;      + 0x2A
+    0x1400013b1  cmp  edi, r8d                   ; Part2 == that value?
+    0x1400013b4  jne  invalid
+                                                  ; else: LICENSE VALIDATED
+
+0xf0f0f0f1 followed by shr edx,4 is the classic MSVC "divide by 17"
+reciprocal-multiplication trick - recognizing it saves misreading it as
+an arbitrary multiply.
+
+CONSTRAINTS:
+    Part1 % 17 == 0
+    Part2       == (Part1 XOR 0x1337) + 0x2A
+
+Regardless of pass/fail, the flag is decrypted using Part2's low byte:
+
+    0x140001340  movzx r9d, dil        ; dil = Part2 & 0xFF
+    0x140001344  xor   r9b, byte [rbx] ; decrypted[i] = key XOR blob[i]
+
+So key = Part2 & 0xFF, applied to an 8-byte blob unconditionally -
+matching the "(Garbage!)" failure-path string.
+
+EXTRACTING THE BLOB
+Pointer at 0x1400051e0 is past .data's raw size (runtime-initialized).
+Initializer at 0x140001000:
+
+    mov dword ptr [rsp+0x30], 0xc9ded4eb
+    mov dword ptr [rsp+0x34], 0x9cc4cfd2
+
+Little-endian bytes: eb d4 de c9 d2 cf c4 9c
+
+
+4. SOLVING
+------------------------------------------------------------------------
+Two unknowns linked by one equation, plus Part1 % 17 == 0. Brute-force
+Part1 over multiples of 17 and test which produces "Victory!":
+
+    blob = bytes([0xeb,0xd4,0xde,0xc9,0xd2,0xcf,0xc4,0x9c])
+    for part1 in range(0, 200000, 17):
+        part2 = (part1 ^ 0x1337) + 0x2A
+        key = part2 & 0xFF
+        dec = bytes(b ^ key for b in blob)
+        if dec == b"Victory!":
+            print(part1, part2)
+
+    1700 5565
+
+Part 1 = 1700, Part 2 = 5565 -> flag "Victory!"
+
+
+5. VERIFICATION
+------------------------------------------------------------------------
+    printf '1700\n5565\n\n' | ./level5.exe
+
+    =============================
+           CRACKME LEVEL 5
+    =============================
+
+    Enter Key Part 1: Enter Key Part 2:
+    [+] LICENSE VALIDATED!
+    [+] Flag: Victory!
+
+    Press Enter to exit...
+
+Confirmed.
+
+
+ANSWER
+------------------------------------------------------------------------
+    Flag         : Victory!
+    Part 1       : 1700
+    Part 2       : 5565
+    Constraints  : Part1 % 17 == 0
+                   Part2 == (Part1 XOR 0x1337) + 0x2A
+    Flag key     : Part2 & 0xFF = 0xBD
+    Method       : static disasm + solve linked constraints + brute the
+                   mod-17 free variable
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip / file - extract & identify (PE32+ x64)
+    Python re    - `strings` substitute
+    pefile       - section VAs, locate main, read blob pointer
+    capstone     - disasm validation + XOR-decrypt logic
+    Python       - solve constraint system, brute mod-17 variable
+    keygen.py    - generate the (Part1, Part2) pair and preview the flag
+    the binary   - dynamic confirmation
+
+
+TAKEAWAYS / METHODOLOGY
+------------------------------------------------------------------------
+  1. Grep for outcome strings broadly, not just the happy path. An early,
+     too-aggressive filter missed "INVALID LICENSE KEY!" / "Garbage!"
+     entirely, leading to a wrong mental model. Always list every
+     printable string once, unfiltered, before modeling branches.
+  2. Local variable order != source order. cin >> Part1 printed first,
+     but the compiler placed Part1's storage AFTER Part2's on the stack
+     (rbp-0x34 vs rbp-0x38). Track each lea/operator>> pair explicitly
+     instead of assuming top-to-bottom = first-to-second.
+  3. Recognize the reciprocal-multiplication division idiom:
+     mov eax,0xf0f0f0f1; mul r8d; shr edx,4  is  r8d / 17 - MSVC's
+     standard trick for constant-divisor division. Spotting it reveals a
+     modulus/divisibility check immediately.
+  4. A failure path that still prints "(Garbage!)" signals the decryption
+     key is derived unconditionally from user input, independent of the
+     validation gate - same pattern as Level 4, now explicit in the UI.
+  5. Two linked unknowns + one small modulus = brute the free variable.
+     Faster and less error-prone than solving algebraically by hand.
+========================================================================

@@ -1,0 +1,167 @@
+========================================================================
+ Level 9 - Walkthrough
+========================================================================
+ Category   : Reverse Engineering (RE) / 32-bit arithmetic constraint
+ Difficulty : Hard
+ Binary     : level9.exe  (PE32+ / Windows x64, ~20 KB)
+ Goal       : Enter the correct 8-character password to print "[+] Correct!".
+
+ ***  PASSWORD: lrys'ume   (bytes 6c 72 79 73 27 75 6d 65)           ***
+ ***                                                                  ***
+ ***  The 8 bytes are read as two little-endian 32-bit ints (A, B).   ***
+ ***  Validator (mod 2^32):                                           ***
+ ***     S   = A + B                                                  ***
+ ***     D   = B XOR S                                                ***
+ ***     ecx = ((D + 0x1337) XOR S)  must == 0x656d4278  (C1)         ***
+ ***     eax = (D + ecx)             must == 0x22f8d52c  (C2)         ***
+ ***  => D = C2 - C1; S = (D+0x1337) XOR C1; B = D^S; A = S-B (unique)***
+ ***                                                                  ***
+ ***  NOTE: same bug as Levels 6 & 8 - the shown flag is garbage      ***
+ ***  ("{JXX..."). The intended flag was "Pass!!!!" (key 0xec), but   ***
+ ***  the correct password's sum yields key 0xc7. Unreachable.        ***
+
+ Recovered by static disassembly + solving the constraints by algebra.
+========================================================================
+
+
+1. RECON
+------------------------------------------------------------------------
+    unzip -P crackmes.one 6a512b0ba6d88566c06d765f.zip  -> level9.exe
+    file level9.exe   -> PE32+ console x86-64
+
+Strings: "Enter 8-Letter Password:", "[+] Correct! Decrypted flag:",
+"[-] Access Denied. Decrypted output:  (Garbage!)" - same shell as
+Levels 6/8, new validation.
+
+
+2. FINDING THE CHECK
+------------------------------------------------------------------------
+Anchor on "Enter 8-Letter Password:" -> main at 0x140001360 (pefile +
+capstone). After the standard sum-keyed flag decryption, the real check
+begins at 0x1400014a7:
+
+    0x1400014a7  cmp r12, 8              ; length must be 8
+    0x1400014ab  jne denied
+    0x1400014b9  mov ecx, dword [pw]     ; A = password[0..3]  (LE int)
+    0x1400014c3  mov edx, dword [pw+4]   ; B = password[4..7]  (LE int)
+    0x1400014c6  lea eax, [rdx+rcx]      ; S = A + B
+    0x1400014c9  xor edx, eax            ; D = B XOR S
+    0x1400014cb  lea ecx, [rdx+0x1337]   ; D + 0x1337
+    0x1400014d1  xor ecx, eax            ; ecx = (D + 0x1337) XOR S
+    0x1400014d3  cmp ecx, 0x656d4278     ; must equal C1
+    0x1400014d9  jne denied
+    0x1400014db  lea eax, [rdx+rcx]      ; eax = D + ecx
+    0x1400014de  cmp eax, 0x22f8d52c     ; must equal C2
+    0x1400014e3  jne denied
+                                         ; else: Correct!
+
+With S = A+B, D = B XOR S, C1 = 0x656d4278, C2 = 0x22f8d52c:
+
+    ecx = (D + 0x1337) XOR S   ==   C1
+    eax = D + ecx              ==   C2
+
+
+3. SOLVING ALGEBRAICALLY
+------------------------------------------------------------------------
+The second equation collapses everything. Since ecx must equal C1:
+
+    eax = D + ecx = D + C1 = C2   =>   D = C2 - C1   (mod 2^32)
+
+D is now known. Back-substitute:
+
+    S = (D + 0x1337) XOR C1
+
+And from the definitions:
+
+    B = D XOR S
+    A = S - B   (mod 2^32)
+
+Every value is uniquely determined - exactly one (A, B):
+
+    M  = 1 << 32
+    C1 = 0x656d4278; C2 = 0x22f8d52c
+    D  = (C2 - C1) % M
+    S  = ((D + 0x1337) % M) ^ C1
+    B  = D ^ S
+    A  = (S - B) % M
+    password = struct.pack('<II', A, B)   # A=0x7379726c, B=0x656d7527
+
+    A = 0x7379726c -> LE bytes 6c 72 79 73 = "lrys"
+    B = 0x656d7527 -> LE bytes 27 75 6d 65 = "'ume"
+
+    PASSWORD = lrys'ume
+
+(Not a dictionary word - just whatever byte pattern the two integer
+targets decode to.)
+
+
+4. VERIFICATION
+------------------------------------------------------------------------
+    printf "lrys'ume\n" | ./level9.exe
+
+           CRACKME LEVEL 9
+    Enter 8-Letter Password:
+    [+] Correct! Decrypted flag: {JXX
+
+"[+] Correct!" - accepted. (The "flag" is garbage; see next.)
+
+
+5. THE GARBAGE FLAG (SAME BUG AS LEVELS 6 & 8)
+------------------------------------------------------------------------
+Flag blob = bc 8d 9f 9f cd cd cd cd; key = ~(sum(password) & 0xFF):
+
+    sum("lrys'ume") = 824 = 0x338  -> 0x338 & 0xFF = 0x38
+    keybyte         = ~0x38 = 0xc7
+    flag            = blob XOR 0xc7 = "{JXX\n\n\n\n"     <- garbage
+
+Brute-forcing the blob:
+
+    key 0xec -> "Pass!!!!"     (the intended flag)
+
+(The four trailing '!' come from the four identical 0xcd bytes.) Key 0xec
+needs sum & 0xFF == ~0xec = 0x13, but the unique password sums to 0x38.
+Because the arithmetic constraint pins (A, B) - hence every byte, hence
+the sum - no accepted password can produce key 0xec. Validator and
+flag-key derivation are decoupled, exactly as in Levels 6 and 8.
+
+CONCLUSION: password is "lrys'ume" (verified [+] Correct!); intended flag
+"Pass!!!!", unreachable through the correct password due to the recurring
+key-derivation bug.
+
+
+ANSWER
+------------------------------------------------------------------------
+    Password        : lrys'ume  (6c 72 79 73 27 75 6d 65)
+    Validation      : two LE dwords A,B; mixing must hit 0x656d4278 and
+                      0x22f8d52c
+    Intended flag   : Pass!!!!  (key 0xec)
+    Shown flag (bug): {JXX...   (key 0xc7 from ~(sum & 0xFF))
+    Method          : static disasm + solve constraint system by algebra
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip / file - extract & identify (PE32+ x64)
+    Python re    - `strings` substitute
+    pefile       - section VAs, locate main, read flag blob initializer
+    capstone     - disasm the integer-mixing check
+    Python       - solve the two equations for A, B (no brute force)
+    the binary   - dynamic confirmation of "[+] Correct!"
+
+
+TAKEAWAYS / METHODOLOGY
+------------------------------------------------------------------------
+  1. Bytes-as-integers is a common obfuscation. mov ecx,[pw] /
+     mov edx,[pw+4] packs 8 chars into two dwords; the "password check"
+     is then arithmetic on two numbers. Recognize the packing and work in
+     integer space.
+  2. Look for the collapsing equation. eax = D + ecx with both ecx and
+     eax pinned to constants immediately gives D = C2 - C1 - no search
+     needed. Check whether a later constraint linearizes an earlier one.
+  3. A fully-determined system has a unique key. Two 32-bit equations
+     fixed both dwords exactly; nothing to brute. Solve, don't guess.
+  4. The flag bug recurs a third time. Same as Levels 6 and 8: the
+     password is pinned, but the flag key comes from ~(sum & 0xFF) which
+     doesn't match the blob. Report the real password and note the
+     intended flag ("Pass!!!!") rather than claiming clean output.
+========================================================================

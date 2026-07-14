@@ -1,0 +1,186 @@
+========================================================================
+ Ultimate Boss Level - Final - Walkthrough
+========================================================================
+ Category   : RE / Anti-debug + jump-table VM + multi-part license
+ Difficulty : Ultimate Boss
+ Binary     : UltimateBoss.exe  (PE32+ / Windows x64, ~30 KB)
+ Goal       : Enter Username + Part 1 + Part 2 to print "[+] Access
+              Granted!" and the clean message "Wow you did it!".
+
+ ***  SOLUTION:  Username = ZZB   Part 1 = 7626   Part 2 = 3960       ***
+ ***  ->  [+] Access Granted!                                        ***
+ ***      [+] Message: Wow you did it!                               ***
+ ***                                                                  ***
+ ***  License algebra:                                               ***
+ ***    Part1 = sum(username_bytes) * 31        (signed, mod 2^32)   ***
+ ***    Part2 = (Part1 XOR 0x1337) + 0x7B       (mod 2^32)           ***
+ ***  Clean message requires  Part2 & 0xFF == 0x78  (msg key 0x46).  ***
+ ***  Username is FREE -> choose one that makes Part2 end in 0x78.   ***
+
+ Solved by static analysis; anti-debug is irrelevant offline.
+========================================================================
+
+
+1. RECON
+------------------------------------------------------------------------
+    unzip -P crackmes.one 6a5158ee71ee08cad748dcc9.zip -> UltimateBoss.exe
+    file UltimateBoss.exe   -> PE32+ console x86-64, 30 KB
+
+No UI strings (prompts are runtime-decrypted). Anti-RE imports:
+    IsDebuggerPresent  CheckRemoteDebuggerPresent  GetThreadContext
+    GetTickCount64     GetProcAddress              Sleep
+
+Running normally:
+    THE ULTIMATE LICENSE CHECK
+    Enter Username: ... Enter Part 1: ... Enter Part 2: ...
+Three inputs: a username string and two integers.
+
+
+2. THE VALIDATION IS A JUMP-TABLE VM
+------------------------------------------------------------------------
+main calls a validator at 0x140001d50. Args (from the call site at
+0x140002753): rcx = username, edx = [rsp+0x48] = Part 1,
+r8d = [rsp+0x44] = Part 2. The function is a state-machine VM:
+
+    0x140001d5b  lea r14, [rip-0x1d62]        ; r14 = image base
+    0x140001d62  xor ebp, 0x1337              ; ebp = Part1 ^ 0x1337
+    0x140001d70  add ebp, 0x7b                ;      + 0x7B  (expected Part2)
+    0x140001d7b  mov r15d, 0x63               ; 0x63 = terminal fail state
+    dispatch:
+    0x140001d81  movsxd rax, r10d             ; state
+    0x140001d84  movzx eax, byte [r14+rax+0x1ec0]   ; opcode = state_tbl[state]
+    0x140001d8d  mov ecx, dword [r14+rax*4+0x1ea4]  ; handler = jump_tbl[opcode]
+    0x140001d95  add rcx, r14
+    0x140001d98  jmp rcx
+
+Tables (0x140001ea4 = jump table, 0x140001ec0 = state table):
+
+    state 0 -> op0 (0x1d9a): username length != 0        (else -> 99)
+    state 1 -> op1 (0x1dab): Part1 == sum(username)*31    (else -> 99)
+    state 3 -> op3 (0x1e83): Part2 == (Part1^0x1337)+0x7B (else -> 99)
+    state 4 -> op4 (0x1e94): result = 1 -> SUCCESS
+    state 99-> op5 (0x1e96): return result (0) -> FAIL
+
+The sum handler is the SSE + scalar movsx/add loop, then imul eax,r9d,0x1f
+(*31). License:
+
+    Part1 = sum(username_bytes) * 31   (signed char sum, mod 2^32)
+    Part2 = (Part1 XOR 0x1337) + 0x7B  (mod 2^32)
+
+
+3. ANTI-DEBUG (IRRELEVANT OFFLINE)
+------------------------------------------------------------------------
+The validator call is bracketed by GetTickCount64:
+
+    0x14000273c  call GetTickCount64          ; start
+    0x140002753  call 0x140001d50             ; validate
+    0x14000275c  call GetTickCount64          ; end
+    0x140002762  sub rax, rbx
+    0x140002765  cmp rax, 0x1f4               ; 500 ms
+    0x14000276b  jbe 0x140002862             ; normal (fast) -> real path
+                 ; slow path -> "[!] Debugger Detected!" (blob A, XOR 0x4f)
+
+If the check takes > 500 ms (single-stepping), it prints a decoy
+"[!] Debugger Detected!" and sleeps. There are also IsDebuggerPresent /
+CheckRemoteDebuggerPresent / GetThreadContext (DR) probes via
+GetProcAddress. Static analysis defeats all of it - we never run under a
+debugger and compute the answer offline.
+
+
+4. THE MESSAGE DECRYPTION (THE REAL PRIZE)
+------------------------------------------------------------------------
+On success the program prints two fixed strings then the real message:
+
+    blob B  -> "\n[+] Access Granted!\n"     (XOR 0x4f, fixed)
+    blob@0x140009218 -> "[+] Message: "       (XOR 0x4f, fixed)
+    0x140002862  movzx r14d, byte [rsp+0x44]  ; Part2 low byte
+    0x140002868  xor   r14b, 0x3e            ; msg key = (Part2 & 0xFF) XOR 0x3E
+                 ; decrypt blob C (15 bytes) with that key, print it
+
+Blob C (initializer at 0x140001560) =
+    11 29 31 66 3f 29 33 66 22 2f 22 66 2f 32 67
+Brute-forcing the single-byte key:
+
+    msg key 0x46 -> "Wow you did it!"   (needs Part2 & 0xFF == 0x78)
+
+WHY THIS ONE IS SOLVABLE (unlike Levels 6/8/9):
+In 6/8/9 the password was pinned, so its byte-sum - and the flag key -
+was fixed and wrong. HERE the username is free. Part2 is a function of the
+username's byte-sum, so choose a username whose derived Part2 ends in
+0x78. Both conditions (Access Granted AND clean message) hold at once.
+
+
+5. SOLVING
+------------------------------------------------------------------------
+    M = 1<<32
+    def parts(S):
+        p1 = (S*31) % M
+        p2 = ((p1 ^ 0x1337) + 0x7B) % M
+        return p1, p2
+    S = next(s for s in range(1,10000) if parts(s)[1] & 0xFF == 0x78)  # 246
+    # username summing to 246, e.g. "ZZB" (90+90+66)
+    p1, p2 = parts(246)   # 7626, 3960
+
+    Username = ZZB   (byte-sum 246)
+    Part 1   = 7626
+    Part 2   = 3960   (low byte 0x78)
+
+
+6. VERIFICATION
+------------------------------------------------------------------------
+    printf 'ZZB\n7626\n3960\n' | ./UltimateBoss.exe
+
+    THE ULTIMATE LICENSE CHECK
+    Enter Username: Enter Part 1: Enter Part 2:
+    [+] Access Granted!
+    [+] Message: Wow you did it!
+
+Confirmed - grant AND clean message. (For comparison, test / 13888 / 9714
+also gets Access Granted but prints a garbage message, because test's
+Part2 low byte isn't 0x78.)
+
+
+ANSWER
+------------------------------------------------------------------------
+    Username    : ZZB  (any non-empty name with Part2 & 0xFF == 0x78)
+    Part 1      : 7626 = sum("ZZB") * 31
+    Part 2      : 3960 = (Part1 ^ 0x1337) + 0x7B
+    Message     : Wow you did it!
+    Message key : (Part2 & 0xFF) XOR 0x3E = 0x46
+    Method      : static disasm; decode VM tables; solve license; pick
+                  username for a clean message
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip / file - extract & identify (PE32+ x64)
+    Python re    - confirm encrypted strings; flag anti-debug imports
+    pefile       - section VAs, locate main + validator, read VM tables
+                   and message blobs
+    capstone     - disasm the jump-table VM, timing guard, blob decryptors
+    Python       - extract state/jump tables; brute msg key; solve username
+    the binary   - dynamic confirmation (runs fine without a debugger)
+
+
+TAKEAWAYS / METHODOLOGY
+------------------------------------------------------------------------
+  1. Anti-debug is a static-analysis problem. IsDebuggerPresent, DR checks
+     via GetThreadContext, and GetTickCount64 timing all target DYNAMIC
+     analysis. Compute the answer offline and every one is neutralized -
+     never attach a debugger to a binary built to detect them.
+  2. A jump-table dispatcher is a VM. movzx opcode,[base+state] ->
+     mov off,[base+opcode*4] -> add; jmp is the signature. Dump both
+     tables from the file, map opcode->handler, and the control flow
+     becomes a plain ordered checklist.
+  3. Recover the license algebra, then keygen it. Part1 = sum*31,
+     Part2 = (Part1^0x1337)+0x7B - two lines once the VM is decoded. The
+     username's freedom makes it a keygen, not a fixed answer.
+  4. A free input fixes the recurring flag bug. The message key is
+     (Part2 & 0xFF) ^ 0x3E, from user-controlled data. Because the
+     username (hence Part2) is ours to choose, we hit the exact key that
+     decrypts "Wow you did it!" - the correct way to wire decrypt-on-
+     success, and a deliberate contrast with Levels 6/8/9.
+  5. Distinguish decoy from real output. "[!] Debugger Detected!" and
+     garbage messages are dead ends; the disassembly shows the genuine
+     success path (fast timing + valid + Part2 low byte 0x78).
+========================================================================

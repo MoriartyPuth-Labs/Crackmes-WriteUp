@@ -1,0 +1,178 @@
+========================================================================
+ Level 4 - Walkthrough
+========================================================================
+ Category   : Reverse Engineering (RE) / Keygen + XOR decryption
+ Difficulty : Medium
+ Binary     : level4.exe  (PE32+ / Windows x64, ~21 KB)
+ Goal       : Enter username + numeric serial so the program prints
+              "[+] Success! Your decrypted flag is: <flag>" with the flag
+              decrypting to real text.
+
+ ***  FLAG: Solved!                                                   ***
+ ***                                                                  ***
+ ***  serial   = (sum of username bytes) * 123                       ***
+ ***  flag key = (serial & 0xFF) XOR 0x34   (== 0x67 for real flag)  ***
+ ***  readable flag requires  sum % 256 == 9                         ***
+ ***                                                                  ***
+ ***  Working combos:  admin / 64083   or   ddA / 32595              ***
+
+ Recovered by static disassembly - no debugger, no brute forcing keys.
+========================================================================
+
+
+1. RECON
+------------------------------------------------------------------------
+    unzip -P crackmes.one 6a512a5e71ee08cad748dcb2.zip   -> level4.exe
+    file level4.exe   -> PE32+ console x86-64
+
+Strings show a new idea - the program DECRYPTS and prints a flag on both
+success and failure:
+
+           CRACKME LEVEL 4
+    Enter Username:
+    Enter Serial Key (numbers only):
+    [+] Success! Your decrypted flag is:
+    [-] Access Denied. Decrypted output:
+
+So this is Level 3's keygen PLUS a serial-driven decryption routine. Same
+two inputs, but now the serial is also a decryption key.
+
+
+2. FINDING MAIN AND THE SERIAL CHECK
+------------------------------------------------------------------------
+Anchor on "Enter Username:" -> main at 0x140001330 (pefile + capstone).
+Username read into std::string; serial read into a 32-bit int [rbp-0x50].
+
+Serial validation is Level-3-style: an (auto-vectorized) sum of username
+bytes, then:
+
+    0x1400014be  imul r12d, r8d, 0x7b   ; r12d = sum * 123 (expected)
+    ...
+    0x140001547  mov  eax, [rbp-0x50]   ; entered serial
+    0x140001551  cmp  eax, r12d
+    0x140001554  jne  denied            ; Success iff serial == sum*123
+
+So  serial = sum * 123  grants "Success".
+
+
+3. THE NEW PART - SERIAL-DRIVEN FLAG DECRYPTION
+------------------------------------------------------------------------
+Between the checksum and the compare, the serial's low byte becomes an
+XOR key used to decrypt a 7-byte blob:
+
+    0x1400014c2  mov   eax, [rbp-0x50]   ; entered serial
+    0x1400014c5  movzx esi, al          ; sil = serial & 0xFF
+    0x1400014c8  xor   sil, 0x34        ; key = (serial & 0xFF) XOR 0x34
+    ...
+    ; loop over blob [0x140006218 .. 0x140006220):
+    0x140001500  movzx r9d, sil
+    0x140001504  xor   r9b, byte [rbx]  ; decrypted = key XOR blob[i]
+    0x140001521  mov   [out+rcx], r9b   ; append to output
+
+Two facts:
+  1. The decryption key comes from the ENTERED serial, not the computed
+     one - the displayed flag depends only on the serial you type (mod
+     256), independent of the pass/fail branch.
+  2. The blob is a fixed global std::string at [0x140006218].
+
+EXTRACTING THE BLOB
+0x140006218 is past .data's raw size => runtime-initialized global. Its
+initializer at 0x140001000 builds the bytes as stack immediates:
+
+    0x140001004  mov ecx, 7                            ; length 7
+    0x140001009  mov dword ptr [rsp+0x30], 0x110b0834  ; 34 08 0b 11
+    0x140001011  mov word  ptr [rsp+0x34], 0x302       ; 02 03
+    0x140001018  mov byte  ptr [rsp+0x36], 0x46        ; 46
+
+    Blob = 34 08 0b 11 02 03 46
+
+
+4. RECOVERING THE FLAG
+------------------------------------------------------------------------
+Single-byte XOR -> brute all 256 keys, keep printable:
+
+    blob = bytes([0x34,0x08,0x0b,0x11,0x02,0x03,0x46])
+    for k in range(256):
+        d = bytes(b ^ k for b in blob)
+        if all(32 <= c < 127 for c in d):
+            print(hex(k), d)
+
+    0x67 -> Solved!
+
+The flag is "Solved!", encrypted with key 0x67.
+
+
+5. WHICH USERNAME / SERIAL?
+------------------------------------------------------------------------
+To DISPLAY "Solved!" the runtime key must be 0x67:
+
+    key = (serial & 0xFF) XOR 0x34 = 0x67
+       => serial & 0xFF = 0x53 (83)
+
+To also get SUCCESS, serial must equal sum*123. Combine:
+
+    (sum * 123) mod 256 == 0x53
+    123 is invertible mod 256; solving gives  sum mod 256 == 9
+
+So pick any username with byte-sum ≡ 9 (mod 256), enter serial = sum*123.
+
+    admin -> sum 521 (521 mod 256 = 9)  -> 521*123 = 64083
+    ddA   -> sum 265 (≡ 9)              -> 32595
+
+Usernames that DON'T satisfy the congruence still print "Success" (serial
+is valid) but show a GARBAGE flag. Example: test (sum 448) / 55104 ->
+"[+] Success! Your decrypted flag is: @|evw2".
+
+
+6. VERIFICATION
+------------------------------------------------------------------------
+    printf 'admin\n64083\n\n' | ./level4.exe
+
+    =============================
+           CRACKME LEVEL 4
+    =============================
+
+    Enter Username: Enter Serial Key (numbers only):
+    [+] Success! Your decrypted flag is: Solved!
+
+    Press Enter to exit...
+
+Confirmed.
+
+
+ANSWER
+------------------------------------------------------------------------
+    Flag                 : Solved!
+    Serial formula       : serial = (sum username_bytes) * 123
+    Flag key             : (serial & 0xFF) XOR 0x34  (= 0x67 real flag)
+    Readable-flag rule   : sum of username bytes ≡ 9 (mod 256)
+    Example              : admin / 64083 -> Solved!
+    Method               : static disasm + extract blob + brute XOR +
+                           solve congruence
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip / file - extract & identify (PE32+ x64)
+    Python re    - `strings` substitute; spotted "decrypted flag" prompts
+    pefile       - section VAs, locate main, read blob pointers
+    capstone     - disasm serial check + XOR loop + blob initializer
+    Python       - brute-force 1-byte XOR; solve sum*123 ≡ 0x53 (mod 256)
+    keygen.py    - generate username/serial and preview decrypted flag
+    the binary   - dynamic confirmation
+
+
+TAKEAWAYS / METHODOLOGY
+------------------------------------------------------------------------
+  1. Serial-as-key is a common escalation. The sum*K keygen returns, but
+     the serial now doubles as a decryption key - watch for a check value
+     being reused downstream.
+  2. Displayed output can be independent of the pass/fail branch. The flag
+     is decrypted from the ENTERED serial before the compare, so "Success"
+     and "readable flag" are two separate conditions.
+  3. Single-byte XOR = brute all 256. The printable-ASCII filter finds it
+     instantly (Solved!).
+  4. Turn constraints into modular arithmetic. Requiring both
+     serial == sum*123 and serial & 0xFF == 0x53 reduces to
+     sum ≡ 9 (mod 256); any username meeting it works.
+========================================================================

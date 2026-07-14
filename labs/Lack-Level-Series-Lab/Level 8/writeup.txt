@@ -1,0 +1,195 @@
+========================================================================
+ Level 8 - Walkthrough
+========================================================================
+ Category   : Reverse Engineering (RE) / Bytecode VM password check
+ Difficulty : Medium-Hard
+ Binary     : level8.exe  (PE32+ / Windows x64, ~21 KB)
+ Goal       : Enter the correct 6-letter password to print "[+] Correct!".
+
+ ***  PASSWORD: matrix                                               ***
+ ***                                                                  ***
+ ***  Validation is a tiny stack-based VM (54-byte embedded bytecode) ***
+ ***  Opcodes (3 bytes each: opcode, operand, pad):                   ***
+ ***     1 idx : r9 = password[idx]                                   ***
+ ***     2 k   : r9 ^= k                                              ***
+ ***     3 v   : result &= (r9 == v)                                  ***
+ ***                                                                  ***
+ ***  NOTE: same bug as Level 6 - the shown flag is garbage           ***
+ ***  ("Yu`f}l5"). The intended flag was "Matrix!" (key 0x7e), but    ***
+ ***  the correct password's byte-sum yields key 0x6a. Unreachable.   ***
+
+ Recovered by static disassembly + symbolic execution of the bytecode.
+========================================================================
+
+
+1. RECON
+------------------------------------------------------------------------
+    unzip -P crackmes.one 6a512af62c3088f968e1341f.zip  -> level8.exe
+    file level8.exe   -> PE32+ console x86-64
+
+Strings:
+
+           CRACKME LEVEL 8
+    Enter 6-Letter Password:
+    [+] Correct! Decrypted flag:
+    [-] Access Denied. Decrypted output:  (Garbage!)
+
+Familiar shape (6-letter key, decrypt-and-print, "(Garbage!)" fail
+label), but the validation is new.
+
+
+2. FINDING THE CHECK
+------------------------------------------------------------------------
+Anchor on "Enter 6-Letter Password:" -> main at 0x140001440 (pefile +
+capstone). Password read into a std::string at [rbp-0x30]. Then:
+
+(a) FLAG DECRYPTION (sum-keyed, with a NOT)
+
+    0x140001503  movsx eax, byte [rcx]   ; sum input bytes -> edi
+    0x140001506  add   edi, eax
+    0x140001510  not   dil               ; keybyte = ~(sum & 0xFF)
+    0x140001544  xor   r9b, byte [rbx]   ; flag[i] = keybyte XOR blob[i]
+
+(b) THE PASSWORD VALIDATOR - A BYTECODE VM
+
+After a length check (cmp r12, 6), the code walks a byte array
+[0x140006230 .. 0x140006238] three bytes at a time, dispatching on the
+first byte:
+
+    0x1400015b0  movzx r8d, byte [rdx+r10+1]   ; operand
+    0x1400015b6  movzx eax, byte [rdx+r10]     ; opcode
+    0x1400015bb  sub eax, 1 ; je op1
+    0x1400015c0  sub eax, 1 ; je op2
+    0x1400015c5  cmp eax, 1 ; je op3
+    0x1400015ca  xor r11b, r11b               ; unknown opcode -> fail
+
+    op1 (0x1400015e6): if operand<6: r9 = password[operand]   ; LOAD
+    op2 (0x1400015e1): r9 ^= operand                          ; XOR
+    op3 (0x1400015cf): r11b = (r9==operand) ? r11b : 0        ; ASSERT
+    ...
+    0x14000160c  test r11b, r11b
+    0x14000160f  je   denied                  ; all asserts must pass
+
+3-opcode VM:
+    opcode 1, idx : r9 = password[idx]
+    opcode 2, k   : r9 ^= k
+    opcode 3, v   : result &= (r9 == v)
+
+"[+] Correct!" requires every assert to pass. Each assert pins one
+(possibly XOR-masked) password byte to a constant - fully invertible.
+
+
+3. EXTRACTING THE BYTECODE
+------------------------------------------------------------------------
+The program is a 54-byte (0x36) runtime-initialized global; initializer
+at 0x140001070 builds it from stack immediates, e.g.:
+
+    mov dword [rbp-0x40], 0x02000001   ; 01 00 00 02
+    mov dword [rbp-0x3c], 0x7f030012   ; 12 00 03 7f
+    ...
+    mov word  [rbp-0x0c], 0x00c4
+
+Reassembling little-endian:
+
+    01 00 00 02 12 00 03 7f 00 01 01 00 02 34 00 03 55 00 01 02
+    00 02 56 00 03 22 00 01 03 00 02 78 00 03 0a 00 01 04 00 02
+    90 00 03 f9 00 01 05 00 02 bc 00 03 c4 00
+
+54 bytes = 18 instructions of 3 bytes each (opcode, operand, padding).
+
+
+4. SOLVING BY SYMBOLIC EXECUTION
+------------------------------------------------------------------------
+Walk the program, tracking the loaded index and accumulated XOR; at each
+assert solve password[idx] = v XOR acc:
+
+    pw = {}; cur = None
+    for i in range(0, len(prog), 3):
+        op, operand = prog[i], prog[i+1]
+        if   op == 1: cur = [operand, 0]      # load pw[operand]
+        elif op == 2: cur[1] ^= operand       # xor accumulate
+        elif op == 3: pw[cur[0]] = operand ^ cur[1]   # assert -> solve
+    password = ''.join(chr(pw[i]) for i in range(6))   # -> "matrix"
+
+Decoding the 18 instructions:
+
+    load pw[0]; xor 0x12; assert 0x7f  -> pw[0] = 0x7f^0x12 = 0x6d 'm'
+    load pw[1]; xor 0x34; assert 0x55  -> pw[1] = 0x55^0x34 = 0x61 'a'
+    load pw[2]; xor 0x56; assert 0x22  -> pw[2] = 0x22^0x56 = 0x74 't'
+    load pw[3]; xor 0x78; assert 0x0a  -> pw[3] = 0x0a^0x78 = 0x72 'r'
+    load pw[4]; xor 0x90; assert 0xf9  -> pw[4] = 0xf9^0x90 = 0x69 'i'
+    load pw[5]; xor 0xbc; assert 0xc4  -> pw[5] = 0xc4^0xbc = 0x78 'x'
+
+    PASSWORD = matrix
+
+
+5. VERIFICATION
+------------------------------------------------------------------------
+    printf 'matrix\n\n' | ./level8.exe
+
+           CRACKME LEVEL 8
+    Enter 6-Letter Password:
+    [+] Correct! Decrypted flag: Yu`f}l5
+
+"[+] Correct!" - the password is accepted. (The trailing "flag" is
+garbage; see next.)
+
+
+6. THE GARBAGE FLAG (SAME BUG AS LEVEL 6)
+------------------------------------------------------------------------
+Flag blob = 33 1f 0a 0c 17 06 5f; decrypt key = ~(sum(password) & 0xFF):
+
+    sum("matrix") = 661 = 0x295  -> 0x295 & 0xFF = 0x95
+    keybyte       = ~0x95 = 0x6a
+    flag          = blob XOR 0x6a = "Yu`f}l5"     <- garbage
+
+Brute-forcing the blob, the only clean plaintext is:
+
+    key 0x7e -> "Matrix!"     (the intended flag)
+
+Key 0x7e needs sum & 0xFF == ~0x7e = 0x81, but "matrix" sums to 0x95.
+Since the VM forces the password to be EXACTLY "matrix", no valid input
+can produce key 0x7e - validator and flag-key derivation are decoupled,
+exactly like Level 6.
+
+CONCLUSION: password is "matrix" (verified [+] Correct!); intended flag
+was "Matrix!", unreachable through the correct password due to the
+author's key-derivation bug.
+
+
+ANSWER
+------------------------------------------------------------------------
+    Password        : matrix
+    Validation      : 18-instruction bytecode VM (load / xor / assert)
+    Intended flag   : Matrix!  (key 0x7e)
+    Shown flag (bug): Yu`f}l5  (key 0x6a from ~(sum & 0xFF))
+    Method          : static disasm + extract & symbolically execute VM
+
+
+TOOLS USED
+------------------------------------------------------------------------
+    unzip / file - extract & identify (PE32+ x64)
+    Python re    - `strings` substitute
+    pefile       - section VAs, locate main, read VM + flag blob pointers
+    capstone     - disasm the VM dispatch loop + initializers
+    Python       - reconstruct the 54-byte bytecode and symbolically run it
+    the binary   - dynamic confirmation of "[+] Correct!"
+
+
+TAKEAWAYS / METHODOLOGY
+------------------------------------------------------------------------
+  1. Recognize a bytecode interpreter by its dispatch shape. A loop
+     reading a global array N bytes at a time, with a sub/sub/cmp opcode
+     ladder and a running result flag, is a VM - recover the ISA rather
+     than tracing it as ad-hoc logic.
+  2. Three opcodes are enough to obfuscate a strcmp. load/xor/assert is
+     just a per-byte equality check wrapped in a mask. Name the opcodes
+     and the "program" IS the password (inverted through the XOR masks).
+  3. Symbolic execution beats brute force here. Each assert yields one
+     byte directly (v XOR acc); nothing to guess - reconstruct the
+     bytecode and run it forward while solving.
+  4. The Level-6 flag bug recurs. The VM pins the password exactly, but
+     the flag key comes from ~(sum & 0xFF), which doesn't line up with
+     the blob. Report the real password and note the intended flag
+     ("Matrix!") rather than pretending the binary prints clean text.
+========================================================================
